@@ -1,4 +1,4 @@
-# Songs AI Game
+# Guess the Song
 
 A modern music guessing game powered by AI. The backend uses Google Gemini to curate popular songs in multiple languages, then searches YouTube for official music videos. A beautiful React frontend lets you play clips and guess songs with adjustable clip length.
 
