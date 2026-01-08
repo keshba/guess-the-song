@@ -114,12 +114,10 @@ Open `http://localhost:5173` in your browser.
 
 ```
 .
-├── songs_ai_agent.go          # Go backend server
+├── songs_ai_agent.go           # Go backend server
 ├── go.mod                      # Go module file
 ├── frontend/
 │   ├── index.html              # React app (CDN-based, no build needed)
-│   ├── styles.css              # Legacy styles (mostly unused)
-│   └── app.jsx                 # Legacy component (reference only)
 └── README.md                   # This file
 ```
 
