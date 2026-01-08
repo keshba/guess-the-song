@@ -1,0 +1,259 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SongAI - Guess the Song</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Roboto', sans-serif; }
+    body { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); min-height: 100vh; color: #fff; }
+    #root { display: flex; height: 100vh; }
+    .sidebar { width: 280px; background: rgba(0,0,0,0.3); backdrop-filter: blur(10px); border-right: 1px solid rgba(102,126,234,0.2); padding: 24px; display: flex; flex-direction: column; overflow-y: auto; }
+    .sidebar-header { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+    .logo { width: 48px; height: 48px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .logo .material-icons { color: #fff; font-size: 28px; }
+    .logo-text h1 { font-size: 18px; font-weight: 700; margin: 0; }
+    .logo-text p { font-size: 12px; color: #999; margin: 2px 0 0 0; }
+    .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .header { padding: 24px; border-bottom: 1px solid rgba(102,126,234,0.1); background: rgba(0,0,0,0.1); }
+    .header h2 { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+    .header p { font-size: 14px; color: #999; }
+    .content-area { flex: 1; overflow-y: auto; padding: 32px; display: flex; align-items: center; justify-content: center; }
+    .content-wrapper { max-width: 600px; width: 100%; }
+    .card { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(102,126,234,0.2); border-radius: 20px; padding: 32px; margin-bottom: 24px; }
+    .album-art { width: 100%; aspect-ratio: 1; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; position: relative; overflow: hidden; }
+    .album-art .material-icons { font-size: 120px; opacity: 0.9; }
+    .album-info { text-align: center; margin-bottom: 24px; }
+    .song-title { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    .artist-name { font-size: 18px; color: #bbb; }
+    .control-group { margin-bottom: 20px; }
+    .control-label { font-size: 13px; font-weight: 500; color: #999; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+    .control-label .material-icons { font-size: 18px; margin-right: 6px; }
+    select, input[type="text"], input[type="range"] { width: 100%; padding: 12px; border: 1px solid rgba(102,126,234,0.3); background: rgba(0,0,0,0.2); color: #fff; border-radius: 8px; font-size: 14px; }
+    select:focus, input[type="text"]:focus { outline: none; border-color: #667eea; background: rgba(0,0,0,0.4); }
+    input[type="range"] { padding: 0; height: 6px; cursor: pointer; accent-color: #667eea; }
+    audio { width: 100%; margin-bottom: 24px; }
+    .button-group { display: flex; gap: 12px; margin-top: 24px; }
+    button { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; flex: 1; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102,126,234,0.4); }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.15); }
+    .btn-play { width: 80px; height: 80px; border-radius: 50%; padding: 0; margin: 0 auto 24px; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button:disabled:hover { transform: none; box-shadow: none; }
+    .status-message { text-align: center; font-size: 18px; font-weight: 600; margin-bottom: 24px; min-height: 24px; }
+    .youtube-link { display: inline-block; margin-top: 16px; padding: 10px 20px; background: #ff0000; color: #fff; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; }
+    .youtube-link:hover { background: #cc0000; }
+    .settings { flex: 1; padding-top: 24px; border-top: 1px solid rgba(102,126,234,0.2); }
+  </style>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+  const {useState, useRef} = React;
+  const BACKEND = window.BACKEND_URL || 'http://localhost:8080';
+
+  function App(){
+    const [lang, setLang] = useState('english');
+    const [clipLength, setClipLength] = useState(30);
+    const [round, setRound] = useState(null);
+    const [message, setMessage] = useState('');
+    const [guess, setGuess] = useState('');
+    const [revealInfo, setRevealInfo] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [guessed, setGuessed] = useState(false);
+    const audioRef = useRef(null);
+
+    async function start(){
+      setIsLoading(true);
+      setMessage('');
+      setRevealInfo(null);
+      setGuess('');
+      setGuessed(false);
+      if(audioRef.current){
+        try{ audioRef.current.pause(); }catch(e){}
+        try{ audioRef.current.src = ''; }catch(e){}
+      }
+      const res = await fetch(`${BACKEND}/start?lang=${encodeURIComponent(lang)}&clipLength=${encodeURIComponent(clipLength)}`);
+      if(!res.ok){
+        const t = await res.text().catch(()=>'Start failed');
+        setMessage(t);
+        setIsLoading(false);
+        return
+      }
+      let data;
+      try { data = await res.json(); } catch(e) { setMessage('Invalid response'); setIsLoading(false); return }
+      const fullClip = `${BACKEND}${data.clip_url}`;
+      setRound({id:data.id, clip_url: fullClip});
+      setMessage('Downloading clip...');
+      waitForClip(data.id, fullClip);
+    }
+
+    async function waitForClip(id, clipUrl){
+      for(let i=0;i<30;i++){
+        try{
+          const s = await fetch(`${BACKEND}/status?id=${encodeURIComponent(id)}`);
+          if(!s.ok){ setMessage('Status error'); setIsLoading(false); return }
+          const js = await s.json();
+          if(js.ready){
+            setMessage('Ready - Play the clip!');
+            if(audioRef.current){ audioRef.current.src = clipUrl; audioRef.current.load(); }
+            setIsLoading(false);
+            return
+          }
+          if(js.error){ setMessage(`Error: ${js.error}`); setIsLoading(false); return }
+        }catch(e){}
+        await new Promise(r=>setTimeout(r,1000));
+      }
+      setMessage('Timeout');
+      setIsLoading(false);
+    }
+
+    async function submitGuess(){
+      if(!round || !guess.trim()) return;
+      setIsLoading(true);
+      const res = await fetch(`${BACKEND}/guess`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:round.id, guess})});
+      const j = await res.json();
+      setGuessed(true);
+      setMessage(j.correct ? '🎉 Correct!' : '❌ Not quite right');
+      setIsLoading(false);
+    }
+
+    async function reveal(){
+      if(!round) return;
+      setIsLoading(true);
+      const res = await fetch(`${BACKEND}/reveal?id=${encodeURIComponent(round.id)}`);
+      const j = await res.json();
+      setRevealInfo(j);
+      setIsLoading(false);
+    }
+
+    return (
+      <React.Fragment>
+        <div className="sidebar">
+          <div className="sidebar-header">
+            <div className="logo">
+              <span className="material-icons">music_note</span>
+            </div>
+            <div className="logo-text">
+              <h1>SongAI</h1>
+              <p>Guess the Song</p>
+            </div>
+          </div>
+
+          <div className="settings">
+            <div className="control-group">
+              <label className="control-label">
+                <span style={{display:'flex', alignItems:'center'}}><span className="material-icons" style={{fontSize:'18px', marginRight:'6px'}}>language</span> Language</span>
+              </label>
+              <select value={lang} onChange={async (e) => {
+                const newLang = e.target.value;
+                setLang(newLang);
+                setMessage('Loading songs for ' + newLang + '...');
+                try {
+                  const res = await fetch(`${BACKEND}/refreshCache?lang=${encodeURIComponent(newLang)}`);
+                  if (res.ok) {
+                    const data = await res.json();
+                    setMessage('Language changed! Ready for new songs.');
+                    setTimeout(() => setMessage(''), 3000);
+                  } else {
+                    setMessage('Failed to load songs for new language');
+                  }
+                } catch (err) {
+                  setMessage('Error loading songs: ' + err.message);
+                }
+              }}>
+                <option value="english">English</option>
+                <option value="hindi">Hindi</option>
+                <option value="tamil">Tamil</option>
+              </select>
+            </div>
+
+            <div className="control-group">
+              <label className="control-label">
+                <span style={{display:'flex', alignItems:'center'}}><span className="material-icons" style={{fontSize:'18px', marginRight:'6px'}}>timer</span> Clip Length</span>
+                <span style={{background:'linear-gradient(135deg, #667eea, #764ba2)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', fontWeight:'700'}}>{clipLength}s</span>
+              </label>
+              <input type="range" min="10" max="60" step="5" value={clipLength} onChange={e=>setClipLength(parseInt(e.target.value))} />
+            </div>
+          </div>
+        </div>
+
+        <div className="main-content">
+          <div className="header">
+            <h2>Guess the Song</h2>
+            <p>Listen to the clip and identify the artist and title</p>
+          </div>
+
+          <div className="content-area">
+            <div className="content-wrapper">
+              {!round ? (
+                <div style={{textAlign:'center'}}>
+                  <button className="btn-play btn-primary" onClick={start} disabled={isLoading} style={{marginBottom:'24px'}}>
+                    <span className="material-icons" style={{fontSize:'40px'}}>play_arrow</span>
+                  </button>
+                  <p style={{color:'#999', fontSize:'14px'}}>Click play to start a new round</p>
+                </div>
+              ) : (
+                <React.Fragment>
+                  <div className="card">
+                    <div className="album-art">
+                      <span className="material-icons">music_note</span>
+                    </div>
+                    <audio ref={audioRef} controls />
+                    <div className="album-info">
+                      {revealInfo ? (
+                        <React.Fragment>
+                          <div className="song-title">{revealInfo.title}</div>
+                          <div className="artist-name">{revealInfo.artist}</div>
+                          {revealInfo.youtube && (
+                            <a href={revealInfo.youtube} target="_blank" rel="noreferrer" className="youtube-link">
+                              <span className="material-icons" style={{fontSize:'16px', verticalAlign:'middle'}}>play_circle</span> Watch on YouTube
+                            </a>
+                          )}
+                        </React.Fragment>
+                      ) : (
+                        <p style={{color:'#999', marginTop:'16px'}}>Now playing...</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {message && <div className="status-message">{message}</div>}
+
+                  {!revealInfo && (
+                    <div className="card">
+                      <div className="control-group">
+                        <label className="control-label">Your Guess</label>
+                        <input type="text" placeholder="Enter song title or artist name..." value={guess} onChange={e=>setGuess(e.target.value)} onKeyPress={e => e.key === 'Enter' && !guessed && submitGuess()} />
+                      </div>
+                      <div className="button-group">
+                        <button className="btn-primary" onClick={submitGuess} disabled={isLoading || guessed || !guess.trim()}>
+                          Submit
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="button-group">
+                    <button className="btn-secondary" onClick={reveal} disabled={isLoading}>Reveal</button>
+                    <button className="btn-primary" onClick={start} disabled={isLoading}>New Song</button>
+                  </div>
+                </React.Fragment>
+              )}
+            </div>
+          </div>
+        </div>
+      </React.Fragment>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
